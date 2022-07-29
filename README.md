@@ -66,7 +66,7 @@
 ## About The Project
 
 <!-- [![Product Name Screen Shot][product-screenshot]](public/) -->
-![Product Name Screen Shot](public/img/drawflow.jpg)
+![Product](public/img/drawflow.jpg)
 
 
 <p align="right">(<a href="#top">back to top</a>)</p>
