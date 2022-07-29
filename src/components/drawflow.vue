@@ -61,6 +61,7 @@
   <el-dialog v-model="modalExecuteProgram" title="Run Program" width="50%">
     <!-- <span>Program:</span> -->
     <span>Input:</span>
+    <!-- <prism-editor class="my-editor" v-model="code" :highlight="" line-numbers></prism-editor> -->
     <!-- <code-highlight language="python">
       <pre>
         <p style="color:white;"> {{ pythonCode }}</p>
@@ -69,7 +70,9 @@
     </code-highlight> -->
 
     <span>Output:</span>
-    {{ outputPythonCode }}
+    <prism-editor class="my-editor" v-model="code" :highlight="highlighter" line-numbers></prism-editor>
+
+
     <!-- <code-highlight language="python">
       <pre>
         <p style="color:white;">{{ outputPythonCode }}</p>
@@ -108,14 +111,22 @@ import For from './nodes/For.vue'
 // import { useStore } from 'vuex'
 import { F } from '../../docs/assets/vendor.7f79e0ec'
 
-import "vue-code-highlight/themes/duotone-sea.css";
-import "vue-code-highlight/themes/window.css";
-import CodeHighlight from 'vue-code-highlight';
+
+// import Prism Editor
+import { PrismEditor } from "vue-prism-editor";
+import "vue-prism-editor/dist/prismeditor.min.css"; // import the styles somewhere
+
+// import highlighting library (you can use any library you want just return html string)
+import { highlight, languages } from "prismjs/components/prism-core";
+import "prismjs/components/prism-clike";
+import "prismjs/components/prism-python";
+import "prismjs/themes/prism-tomorrow.css"; // import syntax highlighting styles
+
 
 export default {
   name: 'drawflow',
   components: {
-    CodeHighlight
+    PrismEditor
   },
   setup() {
     const listNodes = readonly([
@@ -192,6 +203,8 @@ export default {
 
     const pythonCode = ref("");
     const outputPythonCode = ref("");
+    const code = ref('print(Hello)');
+
 
     // drawflow start
     const Vue = { version: 3, h, render };
@@ -278,6 +291,10 @@ export default {
     /**
      * Export Editor -----------------------------------
      */
+    function highlighter(code) {
+      return highlight(code, languages.py); // languages.<insert language> to return html with markup
+    }
+
     function exportEditor() {
       dialogData.value = editor.value.export();
       dialogVisible.value = true;
@@ -286,21 +303,24 @@ export default {
     /**
      * Run Program   -----------------------------------
      */
-    // ---------------------------
     function RunProgram() {
       modalExecuteProgram.value = true;
       /**
        * Get Drawflow data export
        */
-
       let EditorData = editor.value.export().drawflow.Home.data
       // console.log(EditorData)
 
       let drawflowData = Object.values(EditorData)
       // console.log("**", drawflowData)
 
-      async function executeProgram(url, request) {
-        fetch(url, {
+      function highlighter(x) {
+        code.value = x
+        return highlight(code.value, languages.py); // languages.<insert language> to return html with markup
+      }
+
+      async function ExecuteProgram(url, request) {
+        await fetch(url, {
           method: 'POST',
           body: JSON.stringify(request),
           headers: {
@@ -308,10 +328,25 @@ export default {
           }
         })
           .then(res => {
-            console.log(res)
+            console.log(res);
+            return res.json();
+            // GetRequest("http://localhost:5050/execute");
+          })
+          .then(res => {
             outputPythonCode.value = res;
+            highlighter(res.Output);
+            console.log(res)
           })
           .catch(error => console.error('Error!:', error));
+      };
+
+      const GetRequest = async (url) => {
+        try {
+          const res = await fetch(url);
+          console.log(res);
+        } catch (error) {
+          console.log(error);
+        }
       }
 
       const StringCodeGenerate = (data) => {
@@ -465,10 +500,13 @@ export default {
       let urlPythonCode = 'http://localhost:5050/run';
 
       let requestPythonCode = {
-          pythonCode: pythonCode
+        pythonCode: pythonCode.value
       }
 
-      executeProgram(urlPythonCode, requestPythonCode);
+      ExecuteProgram(urlPythonCode, requestPythonCode);
+
+
+      // GetRequest('http://localhost:5050/execute/' + pythonCode.value);
     }
 
 
@@ -673,6 +711,8 @@ export default {
       terminalData,
       pythonCode,
       outputPythonCode,
+      code,
+      highlighter,
 
       drawflowIdentifier,
 
