@@ -5,7 +5,7 @@
       <h3>Drawflow visual programming</h3>
       <el-button type="primary" @click="CleanBoard">Clean Board</el-button>
       <el-button type="primary" @click="ModalSave">Save Drawflow</el-button>
-      <el-button type="primary" @click="ListDrawflows">List Drawflows</el-button>
+      <el-button type="primary" @click="ModalList">List Drawflows</el-button>
       <el-button type="primary" @click="exportEditor">Export</el-button>
       <el-button type="warning" @click="RunProgram">Run Program</el-button>
     </el-header>
@@ -42,6 +42,51 @@
 
   </el-dialog>
 
+  <!-- modal List -->
+  <el-dialog v-model="ActivateModalList" title="List Programs" width="50%">
+    <el-form action="GetDrawflow" method="GET">
+
+      <!-- <ul>
+        <li v-for="drawflow, index in drawflows" :key="index">
+          <div onClick="">
+            {{drawflow.identifier}}
+          </div>
+        </li>
+      </ul> -->
+
+      <table className="table table-hover">
+        <thead>
+          <th>uid</th>
+          <th>identifier</th>
+
+        </thead>
+        <tbody>
+          <tr v-for="drawflow, index in drawflows" :key="index">
+            <td>{{ index }}</td>
+            <td>
+              <a href="#">
+                <div name="">{{ drawflow.identifier }}</div>
+              </a>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <!-- <input type="submit" value="Submit"> -->
+    </el-form>
+    <el-label for="identifier">Ingrese el nombreidentificador de Drawflow a obtener:</el-label>
+    <el-input name="identifier" v-model="searchIdentifier" placeholder="identifier"></el-input>
+
+    <template #footer>
+      <span class="dialog-footer">
+        <el-button type="submit" @click="GetDrawflowByIdentifier">GET</el-button> &nbsp;
+        <el-button type="warning" @click="ActivateModalList = false">Cancel</el-button>
+        <!-- <el-button type="primary" @click="dialogVisible = false">Confirm</el-button> -->
+      </span>
+    </template>
+
+
+  </el-dialog>
+
 
   <!-- modal export -->
   <el-dialog v-model="dialogVisible" title="Export" width="50%">
@@ -71,17 +116,9 @@
 
     <span>Output:</span>
     <prism-editor class="my-editor" v-model="code" :highlight="highlighter" line-numbers></prism-editor>
-
-
-    <!-- <code-highlight language="python">
-      <pre>
-        <p style="color:white;">{{ outputPythonCode }}</p>
-      </pre>
-    </code-highlight> -->
-
     <template #footer>
       <span class="dialog-footer">
-        <el-button type="button" @click="">Run Program</el-button> &nbsp;
+        <el-button type="primary" @click="modalExecuteProgram = false">Cancel</el-button> &nbsp;
       </span>
     </template>
   </el-dialog>
@@ -109,7 +146,6 @@ import IfElse from './nodes/IfElse.vue'
 import For from './nodes/For.vue'
 
 // import { useStore } from 'vuex'
-import { F } from '../../docs/assets/vendor.7f79e0ec'
 
 
 // import Prism Editor
@@ -196,14 +232,21 @@ export default {
      */
 
     const ActivateModalSave = ref(false)
+    const ActivateModalList = ref(false)
+
     const dialogVisible = ref(false)
     const modalExecuteProgram = ref(false)
+
+    //
+    const drawflows = ref({});
+    const searchIdentifier = ref('');
 
     // python Code
 
     const pythonCode = ref("");
     const outputPythonCode = ref("");
     const code = ref('print(Hello)');
+    const dataObj = ref({});
 
 
     // drawflow start
@@ -213,12 +256,32 @@ export default {
 
     // const store = useStore();
 
+    function importData(data) {
+      editor.value.clear();
+      //       console.log(data)
+      editor.value.import(data)
+    }
     /**
      * activadores de modal
      */
 
     function ModalSave() {
-      ActivateModalSave.value = true
+      ActivateModalSave.value = true;
+    }
+    function ModalList() {
+      ActivateModalList.value = true;
+
+      try {
+        fetch('http://localhost:5050/drawflows')
+          .then(response => response.json())
+          .then(response => {
+            console.log(response);
+            drawflows.value = response.getAll;
+          })
+
+      } catch (error) {
+        console.error(error);
+      }
     }
 
     /**=================================================
@@ -288,6 +351,39 @@ export default {
      * List Drawflows ----------------------------------
      */
 
+    const ConvertDataInverse = (data) => {
+      let dataf = {};
+      // console.log(data.query[0].data);
+      data.query[0].data.map(node => {
+        let id = node.id
+        dataf[id] = node;
+      })
+
+      // console.log(dataObj);
+      let dataObj = {
+        drawflow: {
+          Home: {
+            data: dataf
+          }
+        }
+      }
+      console.log(dataObj);
+      importData(dataObj)
+    }
+
+    const GetDrawflowByIdentifier = () => {
+      fetch('http://localhost:5050/drawflow/' + searchIdentifier.value)
+        .then(response => {
+          // console.log(response);
+          return response.json();
+        })
+        .then(res => {
+          console.log(res);
+          // convert data backend to data frontend
+          ConvertDataInverse(res);
+        })
+        .catch(err => console.log(err))
+    }
     /**
      * Export Editor -----------------------------------
      */
@@ -340,14 +436,14 @@ export default {
           .catch(error => console.error('Error!:', error));
       };
 
-      const GetRequest = async (url) => {
-        try {
-          const res = await fetch(url);
-          console.log(res);
-        } catch (error) {
-          console.log(error);
-        }
-      }
+      // const GetRequest = async (url) => {
+      //   try {
+      //     const res = await fetch(url);
+      //     console.log(res);
+      //   } catch (error) {
+      //     console.log(error);
+      //   }
+      // }
 
       const StringCodeGenerate = (data) => {
         let orderedNodes = [];
@@ -556,6 +652,8 @@ export default {
 
     }
 
+
+
     /**
      *  En Montaje
      */
@@ -594,13 +692,7 @@ export default {
       editor.value.registerNode('IfElse', IfElse, {}, {});
       editor.value.registerNode('For', For, {}, {});
 
-      // setTimeout(() => {
-      //   store.dispatch('updateData', editor.value.export());
-      // },2000);
 
-      // store.dispatch('updateData', editor.value.export());
-
-      // const data = ref(computed(() => store.state.data));
 
       /**
        * Import a drawflow data  or initial drawflow 
@@ -702,42 +794,37 @@ export default {
       allowDrop,
 
       ModalSave,
+      ModalList,
       ActivateModalSave,
+      ActivateModalList,
       dialogVisible,
       modalExecuteProgram,
 
       terminalVisible,
       dialogData,
       terminalData,
+
+      drawflows,
+      searchIdentifier,
+
       pythonCode,
       outputPythonCode,
       code,
+      dataObj,
       highlighter,
 
       drawflowIdentifier,
-
-
+      GetDrawflowByIdentifier,
+      CreateDrawflow,
       // newSchema,
       // executeProgram,
       SaveDrawflow,
+      importData,
 
       // data
     }
   }
 
-  // methods: {
-  //     async CreateDrawflow(url,drawflowRequest){
-  //       fetch(url, {
-  //       method: 'POST',
-  //       body: JSON.stringify(drawflowRequest),
-  //       headers: {
-  //         'content-type': 'application/json'
-  //       }
-  //     })
-  //     .then(res => console.log(res))
-  //     .catch(error => console.log('Error!:', error));
-  //     }
-  // }
 }
 
 </script>
