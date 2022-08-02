@@ -233,14 +233,15 @@ export default {
 
     const ActivateModalSave = ref(false)
     const ActivateModalList = ref(false)
-
     const dialogVisible = ref(false)
     const modalExecuteProgram = ref(false)
 
-    //
+    // 
     const drawflows = ref({});
     const searchIdentifier = ref('');
 
+    // import data
+    const dataImport = ref({});
     // python Code
 
     const pythonCode = ref("");
@@ -256,10 +257,93 @@ export default {
 
     // const store = useStore();
 
-    function importData(data) {
+    function importData(dataObj) {
       editor.value.clear();
-      //       console.log(data)
-      editor.value.import(data)
+      dataImport.value = dataObj;
+      // console.log(dataObj);
+      editor.value.import(dataImport.value);
+      // editor.value.import({
+      //   "drawflow": {
+      //     "Home": {
+      //       "data": {
+      //         "1": {
+      //           "id": 1,
+      //           "name": "Start",
+      //           "data": {},
+      //           "class": "Start",
+      //           "html": "Start",
+      //           "typenode": "vue",
+      //           "inputs": {},
+      //           "outputs": {
+      //             "output_1": {
+      //               "connections": [
+      //                 {
+      //                   "node": "3",
+      //                   "output": "input_1"
+      //                 }
+      //               ]
+      //             }
+      //           },
+      //           "pos_x": 91,
+      //           "pos_y": 44
+      //         },
+      //         "2": {
+      //           "id": 2,
+      //           "name": "Print",
+      //           "data": {},
+      //           "class": "Print",
+      //           "html": "Print",
+      //           "typenode": "vue",
+      //           "inputs": {
+      //             "input_1": {
+      //               "connections": [
+      //                 {
+      //                   "node": "3",
+      //                   "input": "output_1"
+      //                 }
+      //               ]
+      //             }
+      //           },
+      //           "outputs": {},
+      //           "pos_x": 354,
+      //           "pos_y": 229
+      //         },
+      //         "3": {
+      //           "id": 3,
+      //           "name": "Number",
+      //           "data": {
+      //             "numbervalue": "100"
+      //           },
+      //           "class": "Number",
+      //           "html": "Number",
+      //           "typenode": "vue",
+      //           "inputs": {
+      //             "input_1": {
+      //               "connections": [
+      //                 {
+      //                   "node": "1",
+      //                   "input": "output_1"
+      //                 }
+      //               ]
+      //             }
+      //           },
+      //           "outputs": {
+      //             "output_1": {
+      //               "connections": [
+      //                 {
+      //                   "node": "2",
+      //                   "output": "input_1"
+      //                 }
+      //               ]
+      //             }
+      //           },
+      //           "pos_x": 21,
+      //           "pos_y": 234
+      //         }
+      //       }
+      //     }
+      //   }
+      // })
     }
     /**
      * activadores de modal
@@ -355,6 +439,17 @@ export default {
       let dataf = {};
       // console.log(data.query[0].data);
       data.query[0].data.map(node => {
+        if (node.data) {
+          node.data = node.data[0];
+        }else {
+          node.data = {};
+        }
+        if (!node.inputs) {
+          node.inputs = {};
+        }
+        if (!node.outputs){
+          node.outputs = {};
+        }
         let id = node.id
         dataf[id] = node;
       })
@@ -368,11 +463,12 @@ export default {
         }
       }
       console.log(dataObj);
-      importData(dataObj)
+      return dataObj;
+      // importData(dataObj)
     }
 
-    const GetDrawflowByIdentifier = () => {
-      fetch('http://localhost:5050/drawflow/' + searchIdentifier.value)
+    const GetDrawflowByIdentifier = async () => {
+      const res = await fetch('http://localhost:5050/drawflow/' + searchIdentifier.value)
         .then(response => {
           // console.log(response);
           return response.json();
@@ -380,9 +476,16 @@ export default {
         .then(res => {
           console.log(res);
           // convert data backend to data frontend
-          ConvertDataInverse(res);
+          ActivateModalList.value = false;
+          // ConvertDataInverse(res);
+          return res;
+
         })
         .catch(err => console.log(err))
+
+      const dataObj = ConvertDataInverse(res);
+
+      importData(dataObj);
     }
     /**
      * Export Editor -----------------------------------
@@ -416,7 +519,7 @@ export default {
       }
 
       async function ExecuteProgram(url, request) {
-        await fetch(url, {
+        return await fetch(url, {
           method: 'POST',
           body: JSON.stringify(request),
           headers: {
@@ -431,19 +534,11 @@ export default {
           .then(res => {
             outputPythonCode.value = res;
             highlighter(res.Output);
-            console.log(res)
+            console.log(res);
           })
           .catch(error => console.error('Error!:', error));
       };
 
-      // const GetRequest = async (url) => {
-      //   try {
-      //     const res = await fetch(url);
-      //     console.log(res);
-      //   } catch (error) {
-      //     console.log(error);
-      //   }
-      // }
 
       const StringCodeGenerate = (data) => {
         let orderedNodes = [];
@@ -597,9 +692,11 @@ export default {
 
       let requestPythonCode = {
         pythonCode: pythonCode.value
-      }
+      };
 
       ExecuteProgram(urlPythonCode, requestPythonCode);
+
+      // highlighter(res.Output);
 
 
       // GetRequest('http://localhost:5050/execute/' + pythonCode.value);
@@ -799,6 +896,8 @@ export default {
       ActivateModalList,
       dialogVisible,
       modalExecuteProgram,
+
+      dataImport,
 
       terminalVisible,
       dialogData,
